@@ -1,0 +1,47 @@
+
+model restore 'sample.p3sav'
+;load the user-defined conatct model, here is the bond damage model
+program load contactmodelmechanical 'contactmodelmechanical3dexample007.dll  
+   
+[pb_coh=1e6]
+[pb_ten=1e6]
+[pb_com=1e7]
+[wlx = brick_width]
+[wly = brick_width]
+[wlz = brick_width]
+
+;define cmat
+;in the following part, here all ucn ucn1 ucs are uc in the model; thetacb is thetac in the model, rgap is ga in the model
+contact cmat default type 'ball-ball' model DBondrotation method deformability emod 1e9 kratio 5 ...
+                                    pb_deformability emod 1e9 kratio 5 property pb_ten [pb_ten] pb_ten1 [pb_ten]... 
+                                    pb_com [pb_com] pb_com1 [pb_com] pb_coh [pb_coh] pb_coh1 [pb_coh] ... 
+                                    ucn 1e-4 ucn1 1e-4 ucs 1e-4 ucb 1e-2 rgap [0.1*d00] lin_mode 1
+contact cmat default type 'ball-facet' model linear method deformability emod 1e10 kratio 1 property rgap [0.2*d00] lin_mode 1    
+    
+contact cmat apply
+model clean
+cycle 200 calm 20
+
+;install bond
+contact method bond gap [0.4*d00] ;;here is gb in the model
+cycle 200 calm 20
+
+;del some floaters
+[ball_delete_num=0]
+def delete_floaters 
+    loop foreach bp ball.list
+      if ball.contactnum(bp) <1
+        ball_delete_num=ball_delete_num+1
+        ball_deleteid=ball.id(bp)
+        command
+          ball delete range id [ball_deleteid]
+        endcommand
+      endif
+    endloop
+end
+@delete_floaters
+    
+    
+model save 'pb_change.p3sav'
+
+

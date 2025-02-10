@@ -1,0 +1,190 @@
+; main reference paper publish in RMRE: An efficient damage-plasticity DEM contact model for highly porous rocks. Zheng & Ciantia, 2025
+
+model new
+model random 10001
+[scale = 1.0]     ; particle upscaling factor (this is needed for BVP)
+[poros = 0.5]   ; desired final porosity
+[mult = 1.6]    ; mutiplication factor for radius expansion method
+MODEL LARGE-STRAIN on
+define geometry
+    c_fri   = .5          ; contact friction coefficient ball-ball
+    c_fri_wall   = .0     ; contact friction coefficient ball-wall
+    d_dens  = 2556        ; ball density (kg/m3) 
+;
+    global brick_width  = 0.002  ; meters
+    global brick_height = 0.002
+    global brick_thick  = 0.002
+    global tot_vol      = brick_width * brick_height * brick_thick
+end
+@geometry
+
+[domain_extent_x = brick_width]
+[domain_extent_y = brick_thick]
+[domain_extent_z = brick_height]
+;
+domain extent [-0.75*domain_extent_x] [0.75*domain_extent_x] ...
+              [-0.75*domain_extent_y] [0.75*domain_extent_y] ...
+              [-0.75*domain_extent_z] [0.75*domain_extent_z]  
+domain condition stop
+wall generate box -0.001 0.001 -0.001 0.001 -0.001 0.001 expand 1.5
+wall property 'fric' @c_fri_wall
+
+;PSD
+def granulometry 
+ 
+  global d100    = 0.00018053  * scale       ;Calcarentine Tuffeau de Maastricht
+  global d90     = 0.0001648437 * scale
+  global d80     = 0.0001481624 * scale
+  global d70     = 0.0001349663 * scale
+  global d60     = 0.0001247328 * scale
+  global d50     = 0.000116473 * scale
+  global d40     = 0.0001078718 * scale
+  global d30     = 0.0000995165 * scale
+  global d20     = 0.000090011 * scale
+  global d10     = 0.00007777 * scale
+  global d00     = 0.000065529 * scale
+
+end
+@granulometry
+
+;
+[ sol_vol = tot_vol * (1. - poros) ]
+;
+  [radii = array.create(11)]
+  [radii(1)  = d100 /2.0 ]
+  [radii(2)  = d90  /2.0 ]
+  [radii(3)  = d80  /2.0 ]
+  [radii(4)  = d70  /2.0 ]
+  [radii(5)  = d60  /2.0 ]
+  [radii(6)  = d50  /2.0 ]
+  [radii(7)  = d40  /2.0 ]
+  [radii(8)  = d30  /2.0 ]
+  [radii(9)  = d20  /2.0 ]
+  [radii(10) = d10  /2.0 ]
+  [radii(11) = d00  /2.0 ]
+
+;
+ [rad_array = array.create(10)]
+ [rad_array(1)   = 0.5 * 0.5 * (d100 + d90)]
+ [rad_array(2)   = 0.5 * 0.5 * (d90 + d80) ]
+ [rad_array(3)   = 0.5 * 0.5 * (d80 + d70) ]
+ [rad_array(4)   = 0.5 * 0.5 * (d70 + d60) ]
+ [rad_array(5)   = 0.5 * 0.5 * (d60 + d50) ]
+ [rad_array(6)   = 0.5 * 0.5 * (d50 + d40) ]
+ [rad_array(7)   = 0.5 * 0.5 * (d40 + d30) ]
+ [rad_array(8)   = 0.5 * 0.5 * (d30 + d20) ]
+ [rad_array(9)   = 0.5 * 0.5 * (d20 + d10) ]
+ [rad_array(10)  = 0.5 * 0.5 * (d10 + d00) ]
+;
+def number_particles_needed
+    number_array = array.create(10)
+    loop i(1,10)
+       number_array(i) = int(sol_vol / (1.) / 10. / (math.pi * rad_array(i)^3. * 4. / 3.))
+    endloop
+end
+@number_particles_needed
+list @rad_array(10)
+;
+ 
+ [n1_0     = 1]
+ [n1_1     = n1_0 + number_array(1)]
+ [n2_0     = n1_1 + 1]
+ [n2_1     = n2_0 + number_array(2)]
+ [n3_0     = n2_1 + 1]
+ [n3_1     = n3_0 + number_array(3)]
+ [n4_0     = n3_1 + 1]
+ [n4_1     = n4_0 + number_array(4)]
+ [n5_0     = n4_1 + 1]
+ [n5_1     = n5_0 + number_array(5)]
+ [n6_0     = n5_1 + 1]
+ [n6_1     = n6_0 + number_array(6)]
+ [n7_0     = n6_1 + 1]
+ [n7_1     = n7_0 + number_array(7)]
+ [n8_0     = n7_1 + 1]
+ [n8_1     = n8_0 + number_array(8)]
+ [n9_0     = n8_1 + 1]
+ [n9_1     = n9_0 + number_array(9)]
+ [n10_0    = n9_1 + 1]
+ [n10_1    = n10_0 + number_array(10)]
+ 
+ 
+  [ids = array.create(20)]
+  [ids(1) = 1]
+  [ids(2) = n1_0 + number_array(1)]
+  [ids(3) = n1_1 + 1]
+  [ids(4) = n2_0 + number_array(2)]
+  [ids(5) = n2_1 + 1]
+  [ids(6) = n3_0 + number_array(3)]
+  [ids(7) = n3_1 + 1]
+  [ids(8) = n4_0 + number_array(4)]
+  [ids(9) = n4_1 + 1]
+  [ids(10) = n5_0 + number_array(5)]
+  [ids(11) = n5_1 + 1]
+  [ids(12) = n6_0 + number_array(6)]
+  [ids(13) = n6_1 + 1]
+  [ids(14) = n7_0 + number_array(7)]
+  [ids(15) = n7_1 + 1]
+  [ids(16) = n8_0 + number_array(8)]
+  [ids(17) = n8_1 + 1]
+  [ids(18) = n9_0 + number_array(9)]
+  [ids(19) = n9_1 + 1]
+  [ids(20) = n10_0 + number_array(10)]
+
+def Ball_Gen 
+ loop i(1,10)
+   command
+    ball generate radius [radii(i+1)/mult] [radii(i)/mult]   ...
+    number [ids(i*2)-ids(i*2-1)] box ([-0.5*brick_width], [0.5*brick_width], [-0.5*brick_thick], [0.5*brick_thick], [-0.5*brick_height], [0.5*brick_height]) tries 800000; [number_array(i)] tries 2000000
+   endcommand
+ endloop
+end
+
+@Ball_Gen
+
+def contact_law_to_use
+
+    command
+      contact cmat default model linear method deformability emod 1e9 kratio 1
+      ball property 'fric' @c_fri
+      ball attribute density @d_dens damp 0.05
+    endcommand 
+  
+end
+@contact_law_to_use
+
+[mult_fact = mult^(1./10.)]
+
+def mult_balls  ; ball expansion 
+ loop i(1,10)
+   command
+    ball attribute radius mult @mult_fact
+    cy 200 calm 100
+   endcommand
+ endloop
+end
+@mult_balls
+
+
+def porosity_check_at_ball_genereate
+    V_ball = 0
+    loop foreach bp ball.list
+        R_ball = ball.radius(bp)
+        V_ball = V_ball + 4.0 * math.pi * R_ball^3 / 3.0
+    endloop
+    poros_ball_generate = 1.0 - V_ball / (brick_width * brick_thick * brick_height)
+end
+@porosity_check_at_ball_genereate
+
+
+ball property 'fric' 0.001
+cy 400 calm 100
+ball property 'fric' @c_fri
+cy 2000 calm 50
+
+model calm
+
+model orientation-tracking on
+
+model save 'sample.p3sav'
+
+

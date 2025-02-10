@@ -1,0 +1,228 @@
+model restore 'iso_100kPa.p3sav'
+fish callback remove @measure -11.0
+
+;define loading vel, you can trial end error to determine a max value
+[platenVel = 0.025]
+;sample initial size and volume before TX loading
+[wlx0=lengthx]
+[wly0=lengthy]
+[wlz0=lengthz]
+[vol0=wlx0*wly0*wlz0]
+[current_step=global.step-1]
+
+;cancel the servo of top and bot walls
+wall servo force (0,0,[target_szz*areaz]) activate false range id 1
+wall servo force (0,0,[-target_szz*areaz]) activate false range id 2
+ball attribute displacement (0,0,0)
+wall attribute displacement (0,0,0)
+
+fish def stress_strain
+
+   wlz=wall.pos.z(walltop) - wall.pos.z(wallbot)
+   wlx=wall.pos.x(wallright) - wall.pos.x(wallleft)
+   wly=wall.pos.y(wallback) - wall.pos.y(wallfront)
+   vol = wlx * wly *wlz
+   void_ratio = (vol - sol_vol) / sol_vol
+   
+   areax= wlz * wly
+   areay= wlz * wlx
+   areaz= wlx * wly
+   sxx= (math.abs(wall.force.contact.x(wallleft)) + math.abs(wall.force.contact.x(wallright))) / 2.0 /areax
+   syy= (math.abs(wall.force.contact.y(wallback)) + math.abs(wall.force.contact.y(wallfront))) / 2.0 /areay
+   szz= (math.abs(wall.force.contact.z(walltop)) + math.abs(wall.force.contact.z(wallbot))) / 2.0 /areaz 
+   q= szz - sxx
+   p= (szz+sxx+syy) /3
+   epsz=(wlz0 - wlz) / wlz0
+   epsx=(wlx0 - wlx) / wlx0
+   epsy=(wly0 - wly) / wly0
+   epsdev=epsz-epsx
+   epsvol=(vol0-vol) / vol0
+   platenVel= 0.0001*(global.step - current_step)
+   if platenVel > 0.025
+    platenVel=0.025
+   endif
+   
+
+command
+;give vel to top and bot walls, other walls keep previous servo
+wall attribute velocity (0,0,[-platenVel]) range id 2
+wall attribute velocity (0,0,[platenVel]) range id 1
+wall servo force ([target_sxx*areax],0,0) gain-factor 1 activate true  range id 3
+wall servo force ([-target_sxx*areax],0,0) gain-factor 1 activate true  range id 4
+wall servo force (0,[target_syy*areay],0) gain-factor 1 activate true  range id 5
+wall servo force (0,[-target_syy*areay],0) gain-factor 1 activate true  range id 6
+endcommand
+
+
+end
+
+[frequency2=100]
+[current_step2=global.step-1]
+;this part to fix the rotation of unbonded particles but I dont callback this function in the example!!!
+def fix_unbonded_ball
+if current_step2 < global.step
+loop foreach bp ball.list
+    if ball.isbonded(bp)==false
+    ballidd=ball.id(bp)
+      ball.group(bp)='unbonded_ball'
+    endif
+  endloop
+  command
+    ball attribute spin (0,0,0) range group 'unbonded_ball'
+    ball fix spin range group 'unbonded_ball'
+  endcommand
+current_step2 = current_step2 + frequency2
+endif
+end
+
+
+history delete
+history nstep 100
+
+
+fish history id 1 void_ratio
+fish history id 2 sxx
+fish history id 3 syy
+fish history id 4 szz
+fish history id 5 p
+fish history id 6 q
+fish history id 7 epsz
+fish history id 8 epsx
+fish history id 9 epsy
+fish history id 10 epsdev
+fish history id 11 epsvol
+
+fish callback add @stress_strain -11.0
+;fish callback add @fix_unbonded_ball -11.0
+
+[flag1=0]
+[flag2=0]
+[flag3=0]
+[flag4=0]
+[flag5=0]
+[flag6=0]
+[flag7=0]
+[flag8=0]
+[flag9=0]
+[flag10=0]
+
+
+
+
+[stop_me=0]
+def stop_me
+  
+    
+    if epsz >1e-2 then
+     if flag1==0
+      flag1=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_1%_1.his' truncate
+        model save 'TX_100kPa_1%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >2e-2 then
+     if flag2==0
+      flag2=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_2%_1.his' truncate
+        model save 'TX_100kPa_2%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >3e-2 then
+     if flag3==0
+      flag3=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_3%_1.his' truncate
+        model save 'TX_100kPa_3%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >4e-2 then
+     if flag4==0
+      flag4=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_4%_1.his' truncate
+        model save 'TX_100kPa_4%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >5e-2 then
+     if flag5==0
+      flag5=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_5%_1.his' truncate
+        model save 'TX_100kPa_5%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >6e-2 then
+     if flag6==0
+      flag6=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_6%_1.his' truncate
+        model save 'TX_100kPa_6%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >7e-2 then
+     if flag7==0
+      flag7=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_7%_1.his' truncate
+        model save 'TX_100kPa_7%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >8e-2 then
+     if flag8==0
+      flag8=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_8%_1.his' truncate
+        model save 'TX_100kPa_8%_1.p3sav'
+      endcommand
+     endif
+    endif
+   
+    
+    if epsz >9e-2 then
+     if flag9==0
+      flag9=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_9%_1.his' truncate
+        model save 'TX_100kPa_9%_1.p3sav'
+      endcommand
+     endif
+    endif
+    
+    if epsz >10e-2 then
+     if flag10==0
+      flag10=1
+      command
+        history export 1 2 3 4 5 6 7 8 9 10 11 file 'TX_100kPa_10%_1.his' truncate
+        ;model save 'TX_100kPa_10%.p3sav'
+      endcommand
+      stop_me=1
+     endif
+    endif
+    
+
+    
+    
+  end
+
+
+
+
+model solve fish-halt @stop_me
+
+model save 'TX_100kPa_10%_1.p3sav'

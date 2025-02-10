@@ -1,0 +1,83 @@
+model restore 'pb_change.p3sav'
+
+ball attribute density @d_dens damp 0.7
+model mechanical timestep auto
+[wlx0 = brick_width]
+[wly0 = brick_width]
+[wlz0 = brick_width]
+;target stress level
+[target_sxx=1e5]
+[target_syy=1e5]
+[target_szz=1e5]
+
+;find wall position
+[walltop = wall.find(2)];+z
+[wallbot = wall.find(1)]
+[wallleft = wall.find(3)]
+[wallright = wall.find(4)];+x
+[wallfront = wall.find(5)]
+[wallback = wall.find(6)];+y
+
+;define sample initiel lateral area and volume
+[area=0.002*0.002]
+[vol=0.002*0.002*0.002]
+
+;this function record some data during consolidation
+def measure
+   lengthz=wall.pos.z(walltop) - wall.pos.z(wallbot)
+   lengthx=wall.pos.x(wallright) - wall.pos.x(wallleft)
+   lengthy=wall.pos.y(wallback) - wall.pos.y(wallfront)
+   new_vol = lengthz * lengthx * lengthy
+   void_ratio = (new_vol - sol_vol) / sol_vol
+   
+   areax= lengthz * lengthy
+   areay= lengthz * lengthx
+   areaz= lengthx * lengthy
+   sxx= (math.abs(wall.force.contact.x(wallleft)) + math.abs(wall.force.contact.x(wallright))) / 2.0 /areax
+   syy= (math.abs(wall.force.contact.y(wallback)) + math.abs(wall.force.contact.y(wallfront))) / 2.0 /areay
+   szz= (math.abs(wall.force.contact.z(walltop)) + math.abs(wall.force.contact.z(wallbot))) / 2.0 /areaz 
+   q= szz - sxx
+   p= (szz+sxx+syy) /3
+   epsz=(0.002 - lengthz) / 0.002
+   epsx=(0.002 - lengthx) / 0.002
+   epsy=(0.002 - lengthy) / 0.002
+   epsdev=epsz-epsx
+   epsvol=(vol-new_vol) / vol
+;wall servo
+command
+wall servo force (0,0,[target_szz*areaz]) activate true range id 1
+wall servo force (0,0,[-target_szz*areaz]) activate true range id 2
+wall servo force ([target_sxx*areax],0,0) activate true range id 3
+wall servo force ([-target_sxx*areax],0,0) activate true range id 4
+wall servo force (0,[target_syy*areay],0) activate true range id 5
+wall servo force (0,[-target_syy*areay],0) activate true range id 6
+endcommand
+   
+   
+end
+
+history nstep 100
+fish history id 1 void_ratio
+fish history id 2 sxx
+fish history id 3 syy
+fish history id 4 szz
+fish history id 5 p
+fish history id 6 q
+fish history id 7 epsz
+fish history id 8 epsx
+fish history id 9 epsy
+fish history id 10 epsdev
+fish history id 11 epsvol
+
+fish callback add @measure -11.0
+
+cy 5000
+model solve
+
+model save 'iso_100kPa.p3sav'
+
+
+
+
+
+
